@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace必须指向Dao接口 -->
+<mapper namespace="com.iori.mapper.ChainMapper">
+
+	<select id="getMasterId" parameterType="String" resultType="String">
+		select master_id from tb_users where username =#{value} and roleName='chain.admin'
+	</select>
+
+	<select id="get1" parameterType="String" resultType="Chain">
+		select s.name as a1,
+			s.prices_salesPrice as a2,
+			c.name as a3,
+			if(c.type=1,'服务','卖品') as a4,
+			if((select value from planx_graph.tb_serviceAttrMap a where a.service_id = s.id and keyname='cannotUseCard' limit 1)=1,'不可以','可以' )  as a5,
+			if((select value from planx_graph.tb_serviceAttrMap a where a.service_id = s.id and keyname='noDiscount' limit 1)=1,'不可以','可以' )  as a6,
+			(select value from planx_graph.tb_serviceAttrMap a where a.service_id = s.id and keyname='fixed_bonus' limit 1)  as a7,
+			if((select value from planx_graph.tb_serviceAttrMap a where a.service_id = s.id and keyname='stored_in_shop' limit 1)=1,'保存','不保存' )  as a8,
+			null as a9,
+			s.comment as a10
+			from planx_graph.tb_service_cate c left join planx_graph.tb_service s on c.id = s.serviceCategory_id and c.master_id = s.master_id and s.del_flag = 0
+		where c.master_id = #{value} and c.del_flag = 0
+	</select>
+
+	<select id="get2" parameterType="String" resultType="Chain">
+		SELECT a.name as a1,a.baseInfo_minMoney as a2,'充值卡' as a3,(select discount*10 from planx_graph.tb_cardcatediscount c where discount is not null and c.cardCateId = b.cateId limit 1) as a4,a.cardValid as a5,
+		a.cardNoGenRule_cardNoPrefix as a6, a.activeCardPresentMoney as a7,
+		a.activeCardPresentScore as a8,a.rechargePresentScore as a9,a.consumePresentScore as a10
+		from planx_graph.tb_membercardcategory a,planx_graph.tb_chain_rechargecatecard b
+		WHERE a.master_id= #{value} and a.baseInfo_type= "recharge" AND b.cateId = a.id and a.del_flag = 0
+		union all
+		SELECT a.name as a1,a.baseInfo_minMoney as a2,'年卡/季卡' as a3,null as a4,a.cardValid as a5,a.cardNoGenRule_cardNoPrefix as a6, a.activeCardPresentMoney as a7,
+		a.activeCardPresentScore as a8,a.rechargePresentScore as a9,a.consumePresentScore as a10 from planx_graph.tb_membercardcategory a,planx_graph.tb_chain_quarterCateCard b
+		WHERE a.master_id= #{value} and a.baseInfo_type= "quarter" AND b.cateId = a.id and a.del_flag = 0
+		union all
+		SELECT a.name as a1,a.baseInfo_minMoney as a2,'计次卡' as a3,null as a4, a.cardValid as a5,a.cardNoGenRule_cardNoPrefix as a6, a.activeCardPresentMoney as a7,
+		a.activeCardPresentScore as a8,a.rechargePresentScore as a9,a.consumePresentScore as a10 from planx_graph.tb_membercardcategory a
+		WHERE a.master_id= #{value} and a.baseInfo_type= "record" and a.del_flag = 0
+	</select>
+
+	<select id="get3" parameterType="String" resultType="Chain">
+		select a.name as a1,b.servicename as a2,b.serviceTimes as a3,b.bonusValue as a4,null as a5 from planx_graph.tb_membercardcategory a ,planx_graph.tb_chain_recordserviceattrmap b
+		WHERE a.master_id= #{value} and (a.baseInfo_type= "record" or a.baseInfo_type= "quarter") and a.del_flag = 0 and a.id = b.cardCateId
+	</select>
+
+	<select id="get4" parameterType="String" resultType="Chain">
+		select memberNo as a1,
+		name  as a2,
+		if(sex=0,'女','男') as a3,
+		from_unixtime(ceil(birthday/1000),'%Y-%m-%d' ) as a4,
+		phoneMobile as a5,
+		FROM_UNIXTIME(ceil(joinDate/1000),'%Y-%m-%d') as a6,
+		currentScore as a7,
+		totalScore as a8,
+		job as a9,
+		null as a10
+		from tb_member
+		where
+		master_id = #{value}
+	</select>
+
+	<select id="get5" parameterType="String" resultType="Chain">
+		select b.memberno as a1,a.cardno as a2,a.memberCardCategoryName as a3,FORMAT(a.currentMoney,1) as a4,from_unixtime(ceil(a.dateTime/1000),'%Y-%m-%d %H:%i:%s') as a5
+		from tb_chain_memberrechargecard a left join tb_member b on a.memberId = b.id where a.master_id= #{value}
+		union all
+		select b.memberno as a1,a.cardno as a2,a.memberCardCategoryName as a3,timesLimit-(select value from tb_chain_memberrecordattrmap
+		where membercardid = a.id limit 1) as a4,from_unixtime(ceil(a.dateTime/1000),'%Y-%m-%d %H:%i:%s') as a5
+		from tb_chain_memberrecordcard a left join tb_member b on a.memberId = b.id where a.master_id= #{value}
+	</select>
+
+
+</mapper> 
